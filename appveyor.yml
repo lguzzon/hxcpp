@@ -57,6 +57,8 @@ test_script:
     - haxe compile%HXCPP_ARCH%.hxml && .\cpp%HXCPP_ARCH%\Test
     - cd %APPVEYOR_BUILD_FOLDER%\test\haxe
     - haxe compile.hxml -debug -D HXCPP_M%HXCPP_ARCH% && .\bin\TestMain-debug
+    - cd %APPVEYOR_BUILD_FOLDER%\test\mingw
+    - haxe compile.hxml -debug -D HXCPP_M%HXCPP_ARCH% && .\bin\TestMain-debug
     # tests from haxe repo
     - cd %HAXE_ROOT%\tests\unit
     - haxe compile-cpp.hxml -D HXCPP_M%HXCPP_ARCH% && .\bin\cpp\Test-debug
