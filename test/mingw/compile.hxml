@@ -1,0 +1,8 @@
+#this class wil be used as entry point for your app.
+-main TestMain
+
+#CPP target
+-cpp bin
+
+-D mingw
+-D no_shared_libs

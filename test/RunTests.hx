@@ -36,6 +36,14 @@ class RunTests
    }
 
 
+   public static function runMinGW()
+   {
+      setDir("mingw");
+      command("haxe", ["compile.hxml", "-debug", "-D", m64Def] );
+      command("bin" + sep + "TestMain-debug",[]);
+   }
+
+
    public static function ndllDynamic()
    {
       setDir("ndlls");
@@ -135,6 +143,7 @@ class RunTests
 
       run("cffi", cffi);
       run("haxe", runHaxe);
+      run("mingw", runMinGW);
       run("ndll-dynamic", ndllDynamic);
       run("ndll-static", ndllStatic);
       run("ndll-64", ndllDynamic64);
