@@ -12,7 +12,7 @@ namespace hx
 typedef std::map<String,Class> ClassMap;
 static ClassMap *sClassMap = 0;
 
-Class RegisterClass(const String &inClassName, CanCastFunc inCanCast,
+Class _hx_RegisterClass(const String &inClassName, CanCastFunc inCanCast,
                     String inStatics[], String inMembers[],
                     ConstructEmptyFunc inConstructEmpty, ConstructArgsFunc inConstructArgs,
                     Class *inSuperClass, ConstructEnumFunc inConstructEnum,
@@ -45,7 +45,7 @@ Class RegisterClass(const String &inClassName, CanCastFunc inCanCast,
    return c;
 }
 
-void RegisterClass(const String &inClassName, Class inClass)
+void _hx_RegisterClass(const String &inClassName, Class inClass)
 {
    if (sClassMap==0)
       sClassMap = new ClassMap;
@@ -141,7 +141,8 @@ void Class_obj::__Visit(hx::VisitContext *__inCtx)
    HX_VISIT_MEMBER(mName);
    HX_VISIT_MEMBER(mStatics);
    HX_VISIT_MEMBER(mMembers);
-   //HX_VISIT_OBJECT(*mSuper);
+   if (mSuper)
+      __inCtx->visitAlloc((void **)&mSuper); 
 }
 #endif
 
@@ -152,7 +153,7 @@ Class &Class_obj::__SGetClass() { return Class_obj__mClass; }
 
 void Class_obj::__boot()
 {
-Static(Class_obj__mClass) = hx::RegisterClass(HX_CSTRING("Class"),TCanCast<Class_obj>,sNone,sNone, 0,0 , 0, 0 );
+Static(Class_obj__mClass) = hx::_hx_RegisterClass(HX_CSTRING("Class"),TCanCast<Class_obj>,sNone,sNone, 0,0 , 0, 0 );
 }
 
 
@@ -160,6 +161,7 @@ void Class_obj::MarkStatics(hx::MarkContext *__inCtx)
 {
    HX_MARK_MEMBER(__meta__);
    HX_MARK_MEMBER(__rtti__);
+   HX_MARK_MEMBER(Class_obj__mClass);
    if (mMarkFunc)
        mMarkFunc(__inCtx);
 }
@@ -168,6 +170,7 @@ void Class_obj::VisitStatics(hx::VisitContext *__inCtx)
 {
    HX_VISIT_MEMBER(__meta__);
    HX_VISIT_MEMBER(__rtti__);
+   HX_VISIT_MEMBER(Class_obj__mClass);
    if (mVisitFunc)
        mVisitFunc(__inCtx);
 }
@@ -241,7 +244,7 @@ bool Class_obj::__HasField(const String &inString)
    return false;
 }
 
-Dynamic Class_obj::__Field(const String &inString, hx::PropertyAccess inCallProp)
+hx::Val Class_obj::__Field(const String &inString, hx::PropertyAccess inCallProp)
 {
    if (inString==HX_CSTRING("__meta__"))
       return __meta__;
@@ -267,7 +270,7 @@ Dynamic Class_obj::__Field(const String &inString, hx::PropertyAccess inCallProp
    return instance->__Field(inString, inCallProp);
 }
 
-Dynamic Class_obj::__SetField(const String &inString,const Dynamic &inValue, hx::PropertyAccess inCallProp)
+hx::Val Class_obj::__SetField(const String &inString,const hx::Val &inValue, hx::PropertyAccess inCallProp)
 {
 
    if (mSetStaticField)

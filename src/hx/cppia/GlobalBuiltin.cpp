@@ -144,6 +144,26 @@ public:
    {
       return  FUNC();
    }
+   #ifdef CPPIA_JIT
+   static void SLJIT_CALL run(double *outResult)
+   {
+      *outResult = FUNC();
+   }
+
+   void genCode(CppiaCompiler *compiler, const JitVal &inDest,ExprType destType)
+   {
+      if (destType==etFloat && isMemoryVal(inDest) )
+      {
+         compiler->callNative( (void *)run, inDest.as(jtFloat));
+      }
+      else
+      {
+         JitTemp temp(compiler,jtFloat);
+         compiler->callNative( (void *)run, temp);
+         compiler->convert(temp, etFloat, inDest, destType);
+      }
+   }
+  #endif
 };
 
 template<typename ARG0, typename RET, RET (*FUNC)(ARG0)>
@@ -287,7 +307,7 @@ CppiaExpr *createGlobalBuiltin(CppiaExpr *src, String function, Expressions &ioE
    }
 
 
-   printf("Unknown function : %s(%d)\n", function.__s, ioExpressions.size() );
+   printf("Unknown function : %s(%d)\n", function.__s, (int)ioExpressions.size() );
    throw "Unknown global";
    return 0;
 }

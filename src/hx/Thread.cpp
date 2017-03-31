@@ -3,15 +3,10 @@
 #include <hx/Thread.h>
 #include <time.h>
 
-#ifdef HX_WINRT
-using namespace Windows::Foundation;
-using namespace Windows::System::Threading;
-#endif
-
 DECLARE_TLS_DATA(class hxThreadInfo, tlsCurrentThread);
 
 // g_threadInfoMutex allows atomic access to g_nextThreadNumber
-static MyMutex g_threadInfoMutex;
+static HxMutex g_threadInfoMutex;
 // Thread number 0 is reserved for the main thread
 static int g_nextThreadNumber = 1;
 
@@ -56,8 +51,8 @@ struct Deque : public Array_obj<Dynamic>
    #endif
 
 
-	#ifdef HX_WINDOWS
-	MyMutex     mMutex;
+	#ifndef HX_THREAD_SEMAPHORE_LOCKABLE
+	HxMutex     mMutex;
 	void PushBack(Dynamic inValue)
 	{
 		hx::EnterGCFreeZone();
@@ -126,12 +121,15 @@ struct Deque : public Array_obj<Dynamic>
 		while(inBlock && !length)
 			mSemaphore.QWait();
 		hx::ExitGCFreeZone();
-		return shift();
+		Dynamic result =  shift();
+		if (length)
+			mSemaphore.QSet();
+		return result;
 	}
 	#endif
 
 	hx::InternalFinalizer *mFinalizer;
-	MySemaphore mSemaphore;
+	HxSemaphore mSemaphore;
 };
 
 Dynamic __hxcpp_deque_create()
@@ -170,10 +168,12 @@ Dynamic __hxcpp_deque_pop(Dynamic q,bool block)
 class hxThreadInfo : public hx::Object
 {
 public:
+   HX_IS_INSTANCE_OF enum { _hx_ClassId = hx::clsIdThreadInfo };
+
 	hxThreadInfo(Dynamic inFunction, int inThreadNumber)
         : mFunction(inFunction), mThreadNumber(inThreadNumber), mTLS(0,0)
 	{
-		mSemaphore = new MySemaphore;
+		mSemaphore = new HxSemaphore;
 		mDeque = Deque::Create();
 	}
 	hxThreadInfo()
@@ -224,7 +224,7 @@ public:
 
 
 	Array<Dynamic> mTLS;
-	MySemaphore *mSemaphore;
+	HxSemaphore *mSemaphore;
 	Dynamic mFunction;
     int mThreadNumber;
 	Deque   *mDeque;
@@ -239,15 +239,15 @@ THREAD_FUNC_TYPE hxThreadFunc( void *inInfo )
    info[0] = (hxThreadInfo *)inInfo;
    info[1] = 0;
 
-	hx::SetTopOfStack((int *)&info[1], true);
-
 	tlsCurrentThread = info[0];
+
+	hx::SetTopOfStack((int *)&info[1], true);
 
 	// Release the creation function
 	info[0]->mSemaphore->Set();
 
     // Call the debugger function to annouce that a thread has been created
-    __hxcpp_dbg_threadCreatedOrTerminated(info[0]->GetThreadNumber(), true);
+    //__hxcpp_dbg_threadCreatedOrTerminated(info[0]->GetThreadNumber(), true);
 
 	if ( info[0]->mFunction.GetPtr() )
 	{
@@ -256,7 +256,7 @@ THREAD_FUNC_TYPE hxThreadFunc( void *inInfo )
 	}
 
     // Call the debugger function to annouce that a thread has terminated
-    __hxcpp_dbg_threadCreatedOrTerminated(info[0]->GetThreadNumber(), false);
+    //__hxcpp_dbg_threadCreatedOrTerminated(info[0]->GetThreadNumber(), false);
 
 	hx::UnregisterCurrentThread();
 
@@ -281,40 +281,11 @@ Dynamic __hxcpp_thread_create(Dynamic inStart)
 	hx::GCPrepareMultiThreaded();
 	hx::EnterGCFreeZone();
 
-   #if defined(HX_WINRT)
-
-   bool ok = true;
-   try
-   {
-     auto workItemHandler = ref new WorkItemHandler([=](IAsyncAction^)
-        {
-            // Run the user callback.
-            hxThreadFunc(info);
-        }, Platform::CallbackContext::Any);
-
-      ThreadPool::RunAsync(workItemHandler, WorkItemPriority::Normal, WorkItemOptions::None);
-   }
-   catch (...)
-   {
-      ok = false;
-   }
-
-   #elif defined(HX_WINDOWS)
-      bool ok = _beginthreadex(0,0,hxThreadFunc,info,0,0) != 0;
-   #else
-      pthread_t result = 0;
-      int created = pthread_create(&result,0,hxThreadFunc,info);
-      bool ok = created==0;
-   #endif
-
-
-     if (ok)
-     {
-        #ifndef HX_WINDOWS
-        pthread_detach(result);
-        #endif
-        info->mSemaphore->Wait();
-     }
+    bool ok = HxCreateDetachedThread(hxThreadFunc, info);
+    if (ok)
+    {
+       info->mSemaphore->Wait();
+    }
 
     hx::ExitGCFreeZone();
     info->CleanSemaphore();
@@ -392,6 +363,8 @@ public:
 		mFinalizer->mFinalizer = clean;
 	}
 
+   HX_IS_INSTANCE_OF enum { _hx_ClassId = hx::clsIdMutex };
+
 	void __Mark(hx::MarkContext *__inCtx) { mFinalizer->Mark(); }
 
    #ifdef HXCPP_VISIT_ALLOCS
@@ -421,7 +394,7 @@ public:
 	}
 
 
-   MyMutex mMutex;
+   HxMutex mMutex;
 };
 
 
@@ -469,6 +442,8 @@ public:
 		mFinalizer->mFinalizer = clean;
 	}
 
+   HX_IS_INSTANCE_OF enum { _hx_ClassId = hx::clsIdLock };
+
 	void __Mark(hx::MarkContext *__inCtx) { mFinalizer->Mark(); }
 
    #ifdef HXCPP_VISIT_ALLOCS
@@ -477,12 +452,12 @@ public:
 
 	hx::InternalFinalizer *mFinalizer;
 
-	#ifdef HX_WINDOWS
+	#if defined(HX_WINDOWS) || defined(__SNC__)
 	double Now()
 	{
 		return (double)clock()/CLOCKS_PER_SEC;
 	}
-	#else
+	#elif defined(__unix__) || defined(__APPLE__)
 	double Now()
 	{
 		struct timeval tv;
@@ -541,8 +516,8 @@ public:
 	}
 
 
-	MySemaphore mNotEmpty;
-   MyMutex     mAvailableLock;
+	HxSemaphore mNotEmpty;
+   HxMutex     mAvailableLock;
 	int         mAvailable;
 };
 
@@ -578,3 +553,22 @@ int __hxcpp_GetCurrentThreadNumber()
     }
     return threadInfo->GetThreadNumber();
 }
+
+// --- Atomic ---
+
+bool _hx_atomic_exchange_if(::cpp::Pointer<cpp::AtomicInt> inPtr, int test, int  newVal )
+{
+   return HxAtomicExchangeIf(test, newVal, inPtr);
+}
+
+int _hx_atomic_inc(::cpp::Pointer<cpp::AtomicInt> inPtr )
+{
+   return HxAtomicInc(inPtr);
+}
+
+int _hx_atomic_dec(::cpp::Pointer<cpp::AtomicInt> inPtr )
+{
+   return HxAtomicDec(inPtr);
+}
+
+

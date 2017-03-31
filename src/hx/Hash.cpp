@@ -1,5 +1,4 @@
 #include <hxcpp.h>
-//#include <hx/CFFI.h>
 #include "Hash.h"
 
 
@@ -166,11 +165,11 @@ bool  __int_hash_remove(Dynamic &ioHash,int inKey)
    return hash->remove(inKey);
 }
 
-Array<Int> __int_hash_keys(Dynamic &ioHash)
+Array<int> __int_hash_keys(Dynamic &ioHash)
 {
    IntHashBase *hash = static_cast<IntHashBase *>(ioHash.GetPtr());
    if (!hash)
-      return Array_obj<Int>::__new();
+      return Array_obj<int>::__new();
    return hash->keys();
 }
 
@@ -379,7 +378,14 @@ String __string_hash_to_string(Dynamic &ioHash)
    if (hash)
       return hash->toString();
    return HX_CSTRING("{}");
+}
 
+String __string_hash_to_string_raw(Dynamic &ioHash)
+{
+   StringHashBase *hash = static_cast<StringHashBase *>(ioHash.GetPtr());
+   if (hash)
+      return hash->toStringRaw();
+   return null();
 }
 
 
@@ -403,11 +409,15 @@ typedef hx::Hash< TDynamicElement<int,true> >    WeakDynamicHashInt;
 typedef hx::Hash< TDynamicElement<Float,true> >   WeakDynamicHashFloat;
 typedef hx::Hash< TDynamicElement<String,true> >  WeakDynamicHashString;
 
+#if (HXCPP_API_LEVEL<331)
 inline void toRealObject(Dynamic &ioObject)
 {
    if (ioObject!=null())
       ioObject = ioObject->__GetRealObject();
 }
+#else
+   #define toRealObject(x)
+#endif
 
 }
 
