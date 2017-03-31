@@ -6,17 +6,6 @@ environment:
     global:
         HAXE_ROOT: C:\projects\haxe
         HAXELIB_ROOT: C:\projects\haxelib
-<<<<<<< HEAD
-        CYG_ARCH: x86
-        CYG_ROOT: C:\cygwin
-        CYG_SETUP: C:\cygwin\setup-x86.exe
-        WODI: wodi32
-        ADD_REVISION: 1
-        OCAMLOPT: ocamlopt.opt
-        MINGW_ARCH: i686
-        MINGW_ROOT: C:\Qt\Tools\mingw492_32
-=======
->>>>>>> upstream/master
     matrix:
         - HXCPP_ARCH: "32"
         - HXCPP_ARCH: "64"
@@ -49,9 +38,4 @@ test_script:
     # tests from haxe repo
     - git clone --recursive --depth 1 -q https://github.com/HaxeFoundation/haxe.git %HAXE_ROOT%
     - cd %HAXE_ROOT%\tests\unit
-<<<<<<< HEAD
-    - haxe compile-cpp.hxml -D HXCPP_M%HXCPP_ARCH% && .\bin\cpp\Test-debug
-    - haxe compile-cpp.hxml -D HXCPP_M%HXCPP_ARCH% -D mingw -D no_shared_libs && .\bin\cpp\Test-debug
-=======
     - haxe compile-cpp.hxml -D HXCPP_M%HXCPP_ARCH% && .\bin\cpp\TestMain-debug
->>>>>>> upstream/master
